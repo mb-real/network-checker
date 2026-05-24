@@ -1,2 +1,2 @@
 /// App metadata. Keep version in sync with pubspec.yaml.
-const String appVersion = '0.6.0';
+const String appVersion = '0.7.0';
