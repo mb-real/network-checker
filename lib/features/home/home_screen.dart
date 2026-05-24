@@ -267,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(Icons.network_check, size: 48, color: colorScheme.onPrimaryContainer),
                 const SizedBox(height: 8),
                 Text(
-                  'NetCheck',
+                  'Network Checker',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: colorScheme.onPrimaryContainer,
@@ -325,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'NetCheck',
+                          'Network Checker',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
