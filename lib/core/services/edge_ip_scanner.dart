@@ -85,139 +85,72 @@ class EdgeIpScanner {
   /// Test a single IP via HTTPS with TLS SNI
   Future<EdgeIpResult?> testIpHttp(String ip) async {
     final stopwatch = Stopwatch()..start();
+    Socket? socket;
+    SecureSocket? secureSocket;
 
     try {
       // Create socket and connect
-      final socket = await Socket.connect(
+      socket = await Socket.connect(
         ip,
         config.port,
         timeout: config.timeout,
       );
 
-      try {
-        // Wrap with SSL and specify SNI hostname
-        final secureSocket = await SecureSocket.secure(
-          socket,
-          host: config.testDomain,
-          onBadCertificate: (_) => true, // Accept all certificates
-        );
+      // Wrap with SSL and specify SNI hostname (with timeout)
+      secureSocket = await SecureSocket.secure(
+        socket,
+        host: config.testDomain,
+        onBadCertificate: (_) => true, // Accept all certificates
+      ).timeout(config.timeout);
 
-        try {
-          // Send HTTP GET request
-          final request = 'GET ${config.testPath} HTTP/1.1\r\n'
-              'Host: ${config.testDomain}\r\n'
-              'Connection: close\r\n'
-              '\r\n';
-          secureSocket.write(request);
-          await secureSocket.flush();
+      // Send HTTP GET request
+      final request = 'GET ${config.testPath} HTTP/1.1\r\n'
+          'Host: ${config.testDomain}\r\n'
+          'Connection: close\r\n'
+          '\r\n';
+      secureSocket.write(request);
+      await secureSocket.flush().timeout(config.timeout);
 
-          // Receive response
-          final response = <int>[];
-          int downloaded = 0;
+      // Receive response with an overall deadline
+      final response = <int>[];
+      int downloaded = 0;
+      final deadline = DateTime.now().add(config.timeout * 2);
 
-          await for (final chunk in secureSocket.timeout(config.timeout)) {
-            response.addAll(chunk);
-            downloaded += chunk.length;
+      await for (final chunk in secureSocket.timeout(config.timeout)) {
+        response.addAll(chunk);
+        downloaded += chunk.length;
 
-            // Stop after downloading test size
-            if (config.testDownload && downloaded >= config.downloadSize) {
-              break;
-            }
-          }
-
-          stopwatch.stop();
-          final latency = stopwatch.elapsedMilliseconds.toDouble();
-
-          // Check if response is valid HTTP
-          final responseStr = String.fromCharCodes(response.take(20));
-          if (responseStr.contains('HTTP/')) {
-            // Calculate download speed
-            final downloadTime = stopwatch.elapsedMilliseconds / 1000.0;
-            final speedKbps = downloadTime > 0 ? (downloaded / 1024) / downloadTime : 0.0;
-
-            return EdgeIpResult(
-              ip: ip,
-              port: config.port,
-              success: true,
-              latencyMs: latency,
-              speedKbps: speedKbps,
-              downloadedBytes: downloaded,
-            );
-          }
-          return null;
-        } finally {
-          await secureSocket.close();
+        // Stop after downloading test size
+        if (config.testDownload && downloaded >= config.downloadSize) {
+          break;
         }
-      } catch (_) {
-        await socket.close();
-        rethrow;
+
+        // Hard deadline to prevent trickle-feed stalls
+        if (DateTime.now().isAfter(deadline)) {
+          break;
+        }
       }
-    } on SocketException catch (e) {
-      return EdgeIpResult(
-        ip: ip,
-        port: config.port,
-        success: false,
-        errorMessage: e.message,
-      );
-    } on HandshakeException catch (e) {
-      return EdgeIpResult(
-        ip: ip,
-        port: config.port,
-        success: false,
-        errorMessage: 'TLS handshake failed: ${e.message}',
-      );
-    } on TimeoutException {
-      return EdgeIpResult(
-        ip: ip,
-        port: config.port,
-        success: false,
-        errorMessage: 'Connection timed out',
-      );
-    } catch (e) {
-      return EdgeIpResult(
-        ip: ip,
-        port: config.port,
-        success: false,
-        errorMessage: e.toString(),
-      );
-    }
-  }
 
-  /// Fast TCP connection test with TLS handshake only (no HTTP)
-  Future<EdgeIpResult?> testIpFast(String ip) async {
-    final stopwatch = Stopwatch()..start();
+      stopwatch.stop();
+      final latency = stopwatch.elapsedMilliseconds.toDouble();
 
-    try {
-      // Create socket and connect
-      final socket = await Socket.connect(
-        ip,
-        config.port,
-        timeout: config.timeout,
-      );
-
-      try {
-        // TLS handshake with SNI
-        final secureSocket = await SecureSocket.secure(
-          socket,
-          host: config.testDomain,
-          onBadCertificate: (_) => true,
-        );
-
-        stopwatch.stop();
-        final latency = stopwatch.elapsedMilliseconds.toDouble();
-
-        await secureSocket.close();
+      // Check if response is valid HTTP
+      final responseStr = String.fromCharCodes(response.take(20));
+      if (responseStr.contains('HTTP/')) {
+        // Calculate download speed
+        final downloadTime = stopwatch.elapsedMilliseconds / 1000.0;
+        final speedKbps = downloadTime > 0 ? (downloaded / 1024) / downloadTime : 0.0;
 
         return EdgeIpResult(
           ip: ip,
           port: config.port,
           success: true,
           latencyMs: latency,
+          speedKbps: speedKbps,
+          downloadedBytes: downloaded,
         );
-      } catch (_) {
-        await socket.close();
-        rethrow;
       }
+      return null;
     } on SocketException catch (e) {
       return EdgeIpResult(
         ip: ip,
@@ -246,6 +179,75 @@ class EdgeIpScanner {
         success: false,
         errorMessage: e.toString(),
       );
+    } finally {
+      // Forceful close — never hangs
+      secureSocket?.destroy();
+      socket?.destroy();
+    }
+  }
+
+  /// Fast TCP connection test with TLS handshake only (no HTTP)
+  Future<EdgeIpResult?> testIpFast(String ip) async {
+    final stopwatch = Stopwatch()..start();
+    Socket? socket;
+    SecureSocket? secureSocket;
+
+    try {
+      // Create socket and connect
+      socket = await Socket.connect(
+        ip,
+        config.port,
+        timeout: config.timeout,
+      );
+
+      // TLS handshake with SNI (with timeout)
+      secureSocket = await SecureSocket.secure(
+        socket,
+        host: config.testDomain,
+        onBadCertificate: (_) => true,
+      ).timeout(config.timeout);
+
+      stopwatch.stop();
+      final latency = stopwatch.elapsedMilliseconds.toDouble();
+
+      return EdgeIpResult(
+        ip: ip,
+        port: config.port,
+        success: true,
+        latencyMs: latency,
+      );
+    } on SocketException catch (e) {
+      return EdgeIpResult(
+        ip: ip,
+        port: config.port,
+        success: false,
+        errorMessage: e.message,
+      );
+    } on HandshakeException catch (e) {
+      return EdgeIpResult(
+        ip: ip,
+        port: config.port,
+        success: false,
+        errorMessage: 'TLS handshake failed: ${e.message}',
+      );
+    } on TimeoutException {
+      return EdgeIpResult(
+        ip: ip,
+        port: config.port,
+        success: false,
+        errorMessage: 'Connection timed out',
+      );
+    } catch (e) {
+      return EdgeIpResult(
+        ip: ip,
+        port: config.port,
+        success: false,
+        errorMessage: e.toString(),
+      );
+    } finally {
+      // Forceful close — never hangs
+      secureSocket?.destroy();
+      socket?.destroy();
     }
   }
 
@@ -364,43 +366,49 @@ class EdgeIpScanner {
     final total = ips.length;
     final results = <EdgeIpResult>[];
 
-    // Create batches for controlled concurrency
-    final batches = <List<String>>[];
-    for (var i = 0; i < ips.length; i += config.maxWorkers) {
-      batches.add(
-        ips.sublist(
-          i,
-          i + config.maxWorkers > ips.length ? ips.length : i + config.maxWorkers,
-        ),
-      );
+    // Worker-pool pattern: each worker grabs the next IP independently,
+    // so one stuck IP never blocks other workers.
+    int nextIndex = 0;
+
+    Future<void> worker() async {
+      while (true) {
+        if (controller.isClosed) return;
+
+        // Grab the next IP atomically
+        final idx = nextIndex++;
+        if (idx >= ips.length) return;
+
+        final ip = ips[idx];
+        EdgeIpResult? result;
+        try {
+          result = await testIp(ip);
+        } catch (_) {
+          // testIp should handle its own errors, but just in case
+          result = null;
+        }
+
+        if (controller.isClosed) return;
+
+        completed++;
+        if (result != null && result.success) {
+          successful++;
+          results.add(result);
+        }
+
+        controller.add(EdgeIpScanProgress(
+          result: result,
+          completed: completed,
+          total: total,
+          successful: successful,
+          workingIps: List.unmodifiable(results),
+        ));
+      }
     }
 
     try {
-      for (final batch in batches) {
-        if (controller.isClosed) break;
-        
-        // Run batch in parallel using Future.wait
-        final futures = batch.map((ip) => testIp(ip));
-        final batchResults = await Future.wait(futures);
-
-        for (final result in batchResults) {
-          if (controller.isClosed) break;
-          
-          completed++;
-          if (result != null && result.success) {
-            successful++;
-            results.add(result);
-          }
-
-          controller.add(EdgeIpScanProgress(
-            result: result,
-            completed: completed,
-            total: total,
-            successful: successful,
-            workingIps: List.unmodifiable(results),
-          ));
-        }
-      }
+      // Spawn maxWorkers independent workers
+      final workers = List.generate(config.maxWorkers, (_) => worker());
+      await Future.wait(workers);
     } catch (e) {
       controller.addError(e);
     } finally {
