@@ -9,6 +9,7 @@ enum DiagnosticEngineStatus { idle, running, completed }
 /// Controller that coordinates executing tests and updating diagnostic UI states.
 class InternetDiagnosticsController extends ChangeNotifier {
   DiagnosticEngineStatus _engineStatus = DiagnosticEngineStatus.idle;
+  int _currentRunId = 0;
 
   // Track status of individual checks
   bool _dnsSuccess = false;
@@ -276,6 +277,9 @@ class InternetDiagnosticsController extends ChangeNotifier {
   Future<void> runDiagnosticsSuite() async {
     if (_engineStatus == DiagnosticEngineStatus.running) return;
 
+    _currentRunId++;
+    final runId = _currentRunId;
+
     _engineStatus = DiagnosticEngineStatus.running;
     _completedTestsCount = 0;
 
@@ -310,54 +314,68 @@ class InternetDiagnosticsController extends ChangeNotifier {
 
     // 1. DNS Resolution Test
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _dnsResult = await InternetDiagnosticsService.checkDnsResolution();
+    if (runId != _currentRunId) return;
     _dnsSuccess = _dnsResult!.success;
     _completedTestsCount++;
     notifyListeners();
 
     // 2. IPv4 Connectivity Test
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _ipv4Result = await InternetDiagnosticsService.checkIpv4Connectivity();
+    if (runId != _currentRunId) return;
     _ipv4Success = _ipv4Result!.success;
     _completedTestsCount++;
     notifyListeners();
 
     // 3. IPv6 Connectivity Test
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _ipv6Result = await InternetDiagnosticsService.checkIpv6Connectivity();
+    if (runId != _currentRunId) return;
     _ipv6Success = _ipv6Result!.success;
     _completedTestsCount++;
     notifyListeners();
 
     // 4. HTTPS Traffic Test
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _httpsResult = await InternetDiagnosticsService.checkHttpsTraffic();
+    if (runId != _currentRunId) return;
     _httpsSuccess = _httpsResult!.success;
     _completedTestsCount++;
     notifyListeners();
 
     // 5. DNS Provider Analysis
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _dnsAnalysisSummary =
         await InternetDiagnosticsService.analyzeDnsProviders();
+    if (runId != _currentRunId) return;
     _dnsAnalysisSuccess = _dnsAnalysisSummary!.success;
     _completedTestsCount++;
     notifyListeners();
 
     // 6. Domestic IP Discovery Test
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _domesticIpResult = await InternetDiagnosticsService.fetchPublicIp(
       domestic: true,
     );
+    if (runId != _currentRunId) return;
     _domesticIpSuccess = _domesticIpResult!.success;
     _completedTestsCount++;
     notifyListeners();
 
     // 7. International IP Discovery Test
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _internationalIpResult = await InternetDiagnosticsService.fetchPublicIp(
       domestic: false,
     );
+    if (runId != _currentRunId) return;
     _internationalIpSuccess = _internationalIpResult!.success;
     _completedTestsCount++;
     notifyListeners();
@@ -371,26 +389,31 @@ class InternetDiagnosticsController extends ChangeNotifier {
 
     // 9. TLS / HTTPS Analysis Step
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _isScanningTlsTargets = true;
     _completedTestsCount++;
     notifyListeners();
 
-    _tlsAnalysisSummary = await InternetDiagnosticsService.analyzeTlsTargets(
+    final tlsSummary = await InternetDiagnosticsService.analyzeTlsTargets(
       publicIp:
           _extractRetrievedIp(_internationalIpResult) ??
           _extractRetrievedIp(_domesticIpResult),
     );
+    if (runId != _currentRunId) return;
+    _tlsAnalysisSummary = tlsSummary;
     _tlsAnalysisSuccess = _tlsAnalysisSummary!.success;
     _isScanningTlsTargets = false;
     notifyListeners();
 
     // 10. Website Reachability Scan Step
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _isScanningWebsites = true;
     _completedTestsCount++;
     notifyListeners();
 
     for (final target in targetWebsites) {
+      if (runId != _currentRunId) return;
       final name = target['name']!;
       final domain = target['domain']!;
 
@@ -398,11 +421,13 @@ class InternetDiagnosticsController extends ChangeNotifier {
         name,
         domain,
       );
+      if (runId != _currentRunId) return;
       _websiteResults.add(result);
       notifyListeners();
 
       // Subtle stagger delay between sequential checks to render scanning effect
       await Future<void>.delayed(const Duration(milliseconds: 150));
+      if (runId != _currentRunId) return;
     }
 
     _isScanningWebsites = false;
@@ -410,11 +435,13 @@ class InternetDiagnosticsController extends ChangeNotifier {
 
     // 10. CDN Reachability Scan Step
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _isScanningCdns = true;
     _completedTestsCount++;
     notifyListeners();
 
     for (final target in targetCdns) {
+      if (runId != _currentRunId) return;
       final name = target['name']!;
       final domain = target['domain']!;
       final List<String> ips = target['ips'] as List<String>;
@@ -429,6 +456,7 @@ class InternetDiagnosticsController extends ChangeNotifier {
         maxConcurrency: 50,
         timeout: const Duration(milliseconds: 500),
       );
+      if (runId != _currentRunId) return;
 
       final isReachable = scanResult.reachable > 0;
       final accessibilityPercent = (scanResult.accessibilityRate * 100).toStringAsFixed(1);
@@ -455,6 +483,7 @@ class InternetDiagnosticsController extends ChangeNotifier {
 
       // Subtle stagger delay between sequential checks to render scanning effect
       await Future<void>.delayed(const Duration(milliseconds: 150));
+      if (runId != _currentRunId) return;
     }
 
     _isScanningCdns = false;
@@ -462,11 +491,13 @@ class InternetDiagnosticsController extends ChangeNotifier {
 
     // 11. Social Media Accessibility Scan Step
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (runId != _currentRunId) return;
     _isScanningSocialMedia = true;
     _completedTestsCount++;
     notifyListeners();
 
     for (final target in targetSocialMedia) {
+      if (runId != _currentRunId) return;
       final name = target['name']!;
       final primary = target['primary']!;
       final secondary = target['secondary']!;
@@ -477,11 +508,13 @@ class InternetDiagnosticsController extends ChangeNotifier {
             primaryDomain: primary,
             secondaryDomain: secondary,
           );
+      if (runId != _currentRunId) return;
       _socialMediaResults.add(result);
       notifyListeners();
 
       // Subtle stagger delay between sequential checks to render scanning effect
       await Future<void>.delayed(const Duration(milliseconds: 150));
+      if (runId != _currentRunId) return;
     }
 
     _isScanningSocialMedia = false;
@@ -510,6 +543,7 @@ class InternetDiagnosticsController extends ChangeNotifier {
 
   /// Reset the engine state
   void resetSuite() {
+    _currentRunId++; // Increment to cancel any active runs
     _engineStatus = DiagnosticEngineStatus.idle;
     _completedTestsCount = 0;
 

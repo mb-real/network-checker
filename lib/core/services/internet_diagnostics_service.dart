@@ -492,34 +492,67 @@ class InternetDiagnosticsService {
 
     final urls = domestic
         ? ['https://chabokan.net/ip/']
-        : ['https://api.ipify.org', 'https://icanhazip.com'];
+        : [
+            'https://api.ipify.org',
+            'https://icanhazip.com',
+            'https://ident.me',
+            'https://ifconfig.me/ip',
+          ];
 
-    String? retrievedIp;
-    String? resolvedUrl;
-    String errorLogs = '';
+    final completer = Completer<Map<String, String>>();
+    var remaining = urls.length;
+    final List<String> errors = [];
+    const queryTimeout = Duration(seconds: 8);
 
     for (final url in urls) {
-      try {
-        final response = await http.get(Uri.parse(url)).timeout(timeoutLimit);
+      http.get(Uri.parse(url)).timeout(queryTimeout).then((response) {
+        if (completer.isCompleted) return;
         if (response.statusCode == 200) {
           String body = response.body.trim();
-        if (url.contains('chabokan.net')) {
-            final data = jsonDecode(body) as Map<String, dynamic>;
-            retrievedIp = (data['ipaddress'] ?? data['ip']) as String?;
+          String? retrievedIp;
+          if (url.contains('chabokan.net')) {
+            try {
+              final data = jsonDecode(body) as Map<String, dynamic>;
+              retrievedIp = (data['ipaddress'] ?? data['ip']) as String?;
+            } catch (_) {}
           } else {
             retrievedIp = body;
           }
 
           if (retrievedIp != null && _isValidIpAddress(retrievedIp)) {
-            resolvedUrl = url;
-            break;
+            completer.complete({
+              'ip': retrievedIp,
+              'url': url,
+            });
+            return;
           }
-        } else {
-          errorLogs += '$url failed with status: ${response.statusCode}\n';
         }
-      } catch (e) {
-        errorLogs += 'Failed to query $url: $e\n';
-      }
+
+        remaining--;
+        errors.add('Failed to query $url: Status ${response.statusCode}');
+        if (remaining == 0 && !completer.isCompleted) {
+          completer.completeError(Exception(errors.join('\n')));
+        }
+      }).catchError((dynamic e) {
+        if (completer.isCompleted) return;
+        remaining--;
+        errors.add('Failed to query $url: ${_formatGeneralError(e)}');
+        if (remaining == 0 && !completer.isCompleted) {
+          completer.completeError(Exception(errors.join('\n')));
+        }
+      });
+    }
+
+    String? retrievedIp;
+    String? resolvedUrl;
+    String errorLogs = '';
+
+    try {
+      final result = await completer.future;
+      retrievedIp = result['ip'];
+      resolvedUrl = result['url'];
+    } catch (e) {
+      errorLogs = e.toString().replaceFirst('Exception: ', '');
     }
 
     stopwatch.stop();
@@ -1456,6 +1489,39 @@ class InternetDiagnosticsService {
         message.contains('nodename nor servname') ||
         message.contains('name or service not known') ||
         message.contains('no address associated');
+  }
+
+  static String _formatGeneralError(dynamic error) {
+    if (error is TimeoutException) {
+      return 'Request timed out (took longer than 8 seconds).';
+    }
+    final errorStr = error.toString();
+    if (errorStr.contains('TimeoutException')) {
+      return 'Request timed out (took longer than 8 seconds).';
+    }
+    if (error is SocketException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('failed host lookup') || msg.contains('dns')) {
+        return 'DNS lookup failed (endpoint host could not be resolved).';
+      }
+      if (msg.contains('connection refused')) {
+        return 'Connection refused by the host server.';
+      }
+      if (msg.contains('network is unreachable') || msg.contains('no route to host')) {
+        return 'Network is unreachable or no route to host.';
+      }
+      return 'Network connection failed (${error.message}).';
+    }
+    if (errorStr.contains('HandshakeException') || errorStr.contains('cert')) {
+      return 'SSL/TLS handshake failed (connection may be blocked or intercepted).';
+    }
+    if (errorStr.contains('SocketException')) {
+      if (errorStr.contains('Connection timed out')) {
+        return 'Connection timed out.';
+      }
+      return 'Network connection failed.';
+    }
+    return errorStr.length > 120 ? '${errorStr.substring(0, 117)}...' : errorStr;
   }
 
   static String _formatSocketException(SocketException e) {
