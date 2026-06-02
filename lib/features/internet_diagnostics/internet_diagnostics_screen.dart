@@ -800,7 +800,7 @@ class InternetDiagnosticsScreen extends StatelessWidget {
                       onPressed: () {
                         final report = controller.generateDiagnosticReport();
                         const promptText = '\n\nAbove is the data gathered with a full analysis of my internet. '
-                            'Generate charts comparing the results between this scan and estimated scans in Germany, US, China and Russia. '
+                            'Above is the data gathered with a full analysis of my internet. Generate charts comparing the results between this scan and estimated scans in  US, China and Russia, I know data might be inaccurate give your best estimate. '
                             'Explain the weakpoints of this internet and compare to those countries. '
                             'From 1-10 how hard is it to use this internet? Be straight to the point.';
                         Clipboard.setData(ClipboardData(text: '$report$promptText'));
