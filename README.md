@@ -1,5 +1,3 @@
-
-<img width="1920" height="1080" alt="network-checker4" src="" />
 # Network Checker
 
 <p align="center">
@@ -38,7 +36,11 @@ Available for Android, Windows, and Linux.
 | **DNS Hunter** | **Edge IP Checker** |
 | ![DNS Hunter](https://github.com/user-attachments/assets/a980bcea-b352-4670-ab30-29518ab877a3) | ![Edge IP Checker](https://github.com/user-attachments/assets/dc5e6700-5a07-4d4a-a659-9e7fba5a57f0) |
 | **Vless Config Modifier** | **CDN Xray Scanner** |
-| ![Vless Config Modifier](https://github.com/user-attachments/assets/25c935e2-fe52-43b6-a245-a6daf1da83d5) | ![CDN Xray Scanner](https://github.com/user-attachments/assets/ee58ee80-c7ec-4d43-8548-5080480b0aa6) |
+| ![Vless Config Modifier](https://github.com/user-attachments/assets/095585cd-ff49-4ed1-bf91-cfe07126688b) | ![CDN Xray Scanner](https://github.com/user-attachments/assets/b35e1c31-83c6-4bc0-91cd-acf7c83aa564) |
+| **Akamai IP Scan** | **SNI Spoof Check** |
+| ![Akamai IP Scan](https://github.com/user-attachments/assets/3684149e-585d-4aca-ba52-608376f8b5d6) | ![SNI Spoof Check](https://github.com/user-attachments/assets/5307d6c7-5e69-4310-a29e-585e411909d0) |
+| **Netlify Config** | **Diagnostics** |
+| ![Netlify Config](https://github.com/user-attachments/assets/1eb37c67-ade1-420a-8b53-4d702ac95280) | ![Diagnostics](https://github.com/user-attachments/assets/8488cd39-c41b-4646-aa48-41a25f5caa2b) |
 
 ### Mobile
 | Domain Checker | DNS Latency Test | DNS Hunter |
