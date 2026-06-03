@@ -1,3 +1,5 @@
+
+<img width="1920" height="1080" alt="network-checker2" src="" />
 # Network Checker
 
 <p align="center">
@@ -32,7 +34,7 @@ Available for Android, Windows, and Linux.
 ### Desktop
 | Domain Checker | DNS Latency Test |
 | :---: | :---: |
-| ![Domain Checker](https://github.com/user-attachments/assets/cb49a96d-d86f-4041-b273-18b0568080a9) | ![DNS Latency Test](https://github.com/user-attachments/assets/0eb2a4af-bc10-44c5-9c77-da38b3e2751f) |
+| ![Domain Checker](https://github.com/user-attachments/assets/a9107c04-254b-4185-978b-f43f08adf73d) | ![DNS Latency Test](https://github.com/user-attachments/assets/3ef00158-7a3f-4887-a68e-1fb9eb20dc9d) |
 | **DNS Hunter** | **Edge IP Checker** |
 | ![DNS Hunter](https://github.com/user-attachments/assets/b3e88496-bbe8-4250-91a4-999fc2f2d7e9) | ![Edge IP Checker](https://github.com/user-attachments/assets/5250f5b7-13f9-47d5-a9c3-24eb29e5b87b) |
 | **Vless Config Modifier** | **CDN Xray Scanner** |
