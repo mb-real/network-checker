@@ -252,6 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
   Widget _buildDrawer() {
     final colorScheme = Theme.of(context).colorScheme;
     var index = 0;
@@ -268,13 +269,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_showSmsEncoder) _DrawerItem(icon: Icons.sms, label: 'SMS', index: index++),
       if (_showCdnScan) _DrawerItem(icon: Icons.speed, label: 'CDN Scan', index: index++),
       if (_showAbout) _DrawerItem(icon: Icons.info, label: 'About', index: index++),
-    ];
-
-    return Drawer(
+    ];    return Drawer(
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
       ),
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
           // Premium modern header
           Container(
@@ -354,93 +354,89 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
           // Staggered list items
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                final isSelected = _selectedIndex == item.index;
+          ...List.generate(items.length, (index) {
+            final item = items[index];
+            final isSelected = _selectedIndex == item.index;
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() => _selectedIndex = item.index);
-                      Navigator.pop(context);
-                    },
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+              child: InkWell(
+                onTap: () {
+                  setState(() => _selectedIndex = item.index);
+                  Navigator.pop(context);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? colorScheme.primaryContainer.withValues(alpha: 0.7)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? colorScheme.primaryContainer.withValues(alpha: 0.7)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                        border: isSelected
-                            ? Border.all(
-                                color: colorScheme.primary.withValues(alpha: 0.15),
-                                width: 1,
-                              )
-                            : null,
+                    border: isSelected
+                        ? Border.all(
+                            color: colorScheme.primary.withValues(alpha: 0.15),
+                            width: 1,
+                          )
+                        : null,
+                  ),
+                  child: Row(
+                    children: [
+                      // Left Indicator Strip for active item
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 4,
+                        height: isSelected ? 20 : 0,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          // Left Indicator Strip for active item
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 4,
-                            height: isSelected ? 20 : 0,
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          SizedBox(width: isSelected ? 12 : 0),
+                      SizedBox(width: isSelected ? 12 : 0),
 
-                          // Icon
-                          Icon(
-                            item.icon,
-                            size: 22,
+                      // Icon
+                      Icon(
+                        item.icon,
+                        size: 22,
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                      ),
+                      const SizedBox(width: 16),
+
+                      // Label
+                      Expanded(
+                        child: Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                             color: isSelected
                                 ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                : colorScheme.onSurface.withValues(alpha: 0.8),
                           ),
-                          const SizedBox(width: 16),
-
-                          // Label
-                          Expanded(
-                            child: Text(
-                              item.label,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurface.withValues(alpha: 0.8),
-                              ),
-                            ),
-                          ),
-
-                          // Chevron trailing arrow for active
-                          if (isSelected)
-                            Icon(
-                              Icons.arrow_right_rounded,
-                              size: 20,
-                              color: colorScheme.primary,
-                            ),
-                        ],
+                        ),
                       ),
-                    ),
+
+                      // Chevron trailing arrow for active
+                      if (isSelected)
+                        Icon(
+                          Icons.arrow_right_rounded,
+                          size: 20,
+                          color: colorScheme.primary,
+                        ),
+                    ],
                   ),
-                ).animate().fadeIn(delay: (30 * index).ms, duration: 300.ms).slideX(begin: -0.05, end: 0, curve: Curves.easeOutCubic);
-              },
-            ),
-          ),
+                ),
+              ),
+            ).animate().fadeIn(delay: (30 * index).ms, duration: 300.ms).slideX(begin: -0.05, end: 0, curve: Curves.easeOutCubic);
+          }),
+          const SizedBox(height: 12),
         ],
       ),
-    );}
+    );
+  }
 
   Widget _buildDesktopLayout() {
     final colorScheme = Theme.of(context).colorScheme;
@@ -453,47 +449,60 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: Row(
               children: [
-                NavigationRail(
-                  minWidth: 96,
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (index) {
-                    setState(() => _selectedIndex = index);
-                  },
-                  labelType: NavigationRailLabelType.all,
-                  leading: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(
-                            Icons.network_check,
-                            size: 28,
-                            color: colorScheme.onPrimaryContainer,
-                          ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
                         ),
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            'Network\nChecker',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: colorScheme.primary,
-                              height: 1.1,
+                        child: IntrinsicHeight(
+                          child: NavigationRail(
+                            minWidth: 96,
+                            selectedIndex: _selectedIndex,
+                            onDestinationSelected: (index) {
+                              setState(() => _selectedIndex = index);
+                            },
+                            labelType: NavigationRailLabelType.all,
+                            leading: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              child: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Icon(
+                                      Icons.network_check,
+                                      size: 28,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Text(
+                                      'Network\nChecker',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: colorScheme.primary,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            destinations: _railDestinations,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  destinations: _railDestinations,
+                      ),
+                    );
+                  },
                 ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.2, end: 0),
                 VerticalDivider(
                   thickness: 1,

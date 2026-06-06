@@ -6,7 +6,11 @@ import 'dart:io';
 /// Default targets for the SNI Spoof Check tool.
 const String kDefaultSniTargets = '''hcaptcha.com
 www.sciencedirect.com
-auth.vercel.com''';
+auth.vercel.com
+chess.com
+unpkg.com
+static.cloudflareinsights.com
+www.speedtest.net''';
 
 /// Default port to scan (quick mode).
 const List<int> kDefaultSniPorts = [443];
@@ -139,8 +143,7 @@ class SniSpoofScanProgress {
     required this.allResults,
   });
 
-  double get progress =>
-      totalTargets > 0 ? completedTargets / totalTargets : 0;
+  double get progress => totalTargets > 0 ? completedTargets / totalTargets : 0;
 
   int get okCount =>
       allResults.where((r) => r.status == SniResultStatus.ok).length;
@@ -159,7 +162,7 @@ class SniSpoofCheckService {
   bool _cancelled = false;
 
   SniSpoofCheckService({SniSpoofCheckConfig? config})
-      : config = config ?? const SniSpoofCheckConfig();
+    : config = config ?? const SniSpoofCheckConfig();
 
   void cancel() {
     _cancelled = true;
@@ -188,8 +191,10 @@ class SniSpoofCheckService {
     if (isIpAddress(target)) return [target];
 
     try {
-      final addresses = await InternetAddress.lookup(target,
-          type: InternetAddressType.IPv4);
+      final addresses = await InternetAddress.lookup(
+        target,
+        type: InternetAddressType.IPv4,
+      );
       final ips = addresses
           .where((a) => a.type == InternetAddressType.IPv4)
           .map((a) => a.address)
@@ -230,8 +235,9 @@ class SniSpoofCheckService {
         final client = HttpClient();
         client.connectionTimeout = const Duration(seconds: 10);
         final request = await client.getUrl(Uri.parse(_kPublicIpApiUrl));
-        final response =
-            await request.close().timeout(const Duration(seconds: 20));
+        final response = await request.close().timeout(
+          const Duration(seconds: 20),
+        );
         final body = await response.transform(SystemEncoding().decoder).join();
         client.close(force: true);
 
@@ -250,7 +256,10 @@ class SniSpoofCheckService {
   /// TCP+TLS connection to [ip]:443, injecting [domain] as the SNI hostname.
   /// Returns the `ip=` field from the Cloudflare trace response.
   Future<SniIpCheckResult> checkIp(
-      String domain, String ip, String userPublicIp) async {
+    String domain,
+    String ip,
+    String userPublicIp,
+  ) async {
     Socket? rawSocket;
     SecureSocket? secureSocket;
 
@@ -270,7 +279,8 @@ class SniSpoofCheckService {
       ).timeout(const Duration(seconds: 10));
 
       // Step 3: HTTP GET /cdn-cgi/trace with Host: domain
-      final request = 'GET /cdn-cgi/trace HTTP/1.1\r\n'
+      final request =
+          'GET /cdn-cgi/trace HTTP/1.1\r\n'
           'Host: $domain\r\n'
           'Connection: close\r\n'
           '\r\n';
@@ -279,8 +289,9 @@ class SniSpoofCheckService {
 
       // Step 4: Read response
       final responseBytes = <int>[];
-      await for (final chunk
-          in secureSocket.timeout(const Duration(seconds: 10))) {
+      await for (final chunk in secureSocket.timeout(
+        const Duration(seconds: 10),
+      )) {
         responseBytes.addAll(chunk);
         if (responseBytes.length > 8192) break; // Safety limit
       }
@@ -288,8 +299,10 @@ class SniSpoofCheckService {
       final responseStr = String.fromCharCodes(responseBytes);
 
       // Parse ip= from the trace body
-      final ipMatch = RegExp(r'^ip=(.+)$', multiLine: true)
-          .firstMatch(responseStr);
+      final ipMatch = RegExp(
+        r'^ip=(.+)$',
+        multiLine: true,
+      ).firstMatch(responseStr);
       if (ipMatch == null) {
         return const SniIpCheckResult(matched: false);
       }
@@ -303,9 +316,7 @@ class SniSpoofCheckService {
       return const SniIpCheckResult(matched: false);
     } finally {
       try {
-        await secureSocket
-            ?.close()
-            .timeout(const Duration(seconds: 2));
+        await secureSocket?.close().timeout(const Duration(seconds: 2));
       } catch (_) {
         try {
           secureSocket?.destroy();
@@ -356,20 +367,23 @@ class SniSpoofCheckService {
     // Create batches for concurrency control
     final batches = <List<String>>[];
     for (var i = 0; i < targets.length; i += config.concurrency) {
-      batches.add(targets.sublist(
-        i,
-        i + config.concurrency > targets.length
-            ? targets.length
-            : i + config.concurrency,
-      ));
+      batches.add(
+        targets.sublist(
+          i,
+          i + config.concurrency > targets.length
+              ? targets.length
+              : i + config.concurrency,
+        ),
+      );
     }
 
     try {
       for (final batch in batches) {
         if (_cancelled || controller.isClosed) break;
 
-        final futures = batch.map((target) =>
-            _processTarget(target, userPublicIp));
+        final futures = batch.map(
+          (target) => _processTarget(target, userPublicIp),
+        );
         final batchResults = await Future.wait(futures);
 
         for (final targetResults in batchResults) {
@@ -378,12 +392,16 @@ class SniSpoofCheckService {
           completedTargets++;
           allResults.addAll(targetResults);
 
-          controller.add(SniSpoofScanProgress(
-            latestResult: targetResults.isNotEmpty ? targetResults.last : null,
-            completedTargets: completedTargets,
-            totalTargets: targets.length,
-            allResults: List.unmodifiable(allResults),
-          ));
+          controller.add(
+            SniSpoofScanProgress(
+              latestResult: targetResults.isNotEmpty
+                  ? targetResults.last
+                  : null,
+              completedTargets: completedTargets,
+              totalTargets: targets.length,
+              allResults: List.unmodifiable(allResults),
+            ),
+          );
         }
       }
     } catch (e) {
@@ -399,7 +417,9 @@ class SniSpoofCheckService {
 
   /// Process a single target: resolve, scan ports on each IP, optionally check IP.
   Future<List<SniIpResult>> _processTarget(
-      String target, String? userPublicIp) async {
+    String target,
+    String? userPublicIp,
+  ) async {
     // Resolve
     final ips = await resolveTarget(target);
     if (ips.isEmpty) {
@@ -419,11 +439,9 @@ class SniSpoofCheckService {
 
       // Filter internal/private IPs (10.x.x.x)
       if (ip.startsWith('10.')) {
-        results.add(SniIpResult(
-          target: target,
-          ip: ip,
-          status: SniResultStatus.filtered,
-        ));
+        results.add(
+          SniIpResult(target: target, ip: ip, status: SniResultStatus.filtered),
+        );
         continue;
       }
 
@@ -453,20 +471,24 @@ class SniSpoofCheckService {
           ipCheckResult = null;
         }
 
-        results.add(SniIpResult(
-          target: target,
-          ip: ip,
-          status: SniResultStatus.ok,
-          portResults: portResults,
-          ipCheckResult: ipCheckResult,
-        ));
+        results.add(
+          SniIpResult(
+            target: target,
+            ip: ip,
+            status: SniResultStatus.ok,
+            portResults: portResults,
+            ipCheckResult: ipCheckResult,
+          ),
+        );
       } else {
-        results.add(SniIpResult(
-          target: target,
-          ip: ip,
-          status: SniResultStatus.fail,
-          portResults: portResults,
-        ));
+        results.add(
+          SniIpResult(
+            target: target,
+            ip: ip,
+            status: SniResultStatus.fail,
+            portResults: portResults,
+          ),
+        );
       }
     }
 
@@ -475,22 +497,26 @@ class SniSpoofCheckService {
 
   /// Generate a summary report text (mirrors the bash script final summary).
   static String generateReport(
-      List<SniIpResult> results, SniSpoofCheckConfig config) {
+    List<SniIpResult> results,
+    SniSpoofCheckConfig config,
+  ) {
     final buffer = StringBuffer();
     buffer.writeln('=== SNI Spoof Check Report ===');
     buffer.writeln('Ports: ${config.ports.join(',')}');
-    buffer.writeln(
-        'Timeout: ${config.timeout}s | Retries: ${config.retries}');
+    buffer.writeln('Timeout: ${config.timeout}s | Retries: ${config.retries}');
     buffer.writeln('Timestamp: ${DateTime.now().toIso8601String()}');
     buffer.writeln('---------------------------------------------------');
 
     final ok = results.where((r) => r.status == SniResultStatus.ok).toList();
-    final fail =
-        results.where((r) => r.status == SniResultStatus.fail).toList();
-    final error =
-        results.where((r) => r.status == SniResultStatus.error).toList();
-    final filtered =
-        results.where((r) => r.status == SniResultStatus.filtered).toList();
+    final fail = results
+        .where((r) => r.status == SniResultStatus.fail)
+        .toList();
+    final error = results
+        .where((r) => r.status == SniResultStatus.error)
+        .toList();
+    final filtered = results
+        .where((r) => r.status == SniResultStatus.filtered)
+        .toList();
 
     if (ok.isNotEmpty) {
       buffer.writeln('');
@@ -518,8 +544,7 @@ class SniSpoofCheckService {
 
     if (filtered.isNotEmpty) {
       buffer.writeln('');
-      buffer.writeln(
-          '=== FILTERED (Blocked/IP 10.x) [${filtered.length}] ===');
+      buffer.writeln('=== FILTERED (Blocked/IP 10.x) [${filtered.length}] ===');
       for (final r in filtered) {
         buffer.writeln(r.toDisplayString());
       }

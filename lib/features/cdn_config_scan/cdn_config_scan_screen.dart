@@ -62,16 +62,20 @@ class _CdnConfigScanScreenState extends State<CdnConfigScanScreen> {
       ),
       body: Consumer<CdnConfigScanController>(
         builder: (context, controller, _) {
+          final bottomPadding = MediaQuery.paddingOf(context).bottom;
           return Column(
             children: [
               // Stepper indicator
               _buildStepIndicator(context, controller),
-              
+
               // Main content
               Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: _buildCurrentStep(context, controller),
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: bottomPadding),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _buildCurrentStep(context, controller),
+                  ),
                 ),
               ),
             ],
