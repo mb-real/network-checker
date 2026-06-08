@@ -635,6 +635,29 @@ class InternetDiagnosticsController extends ChangeNotifier {
     final testTimeout = const Duration(seconds: 4);
     final List<ProtocolAccessibilitySummary> summaries = [];
 
+    Future<ProtocolTestResult> runProtocolDomainTest(
+      String domain,
+      Future<ProtocolTestResult> Function(String, Duration) tester,
+    ) async {
+      try {
+        return await tester(domain, testTimeout).timeout(
+          testTimeout * 2 + const Duration(seconds: 4),
+        );
+      } on TimeoutException {
+        return ProtocolTestResult(
+          domain: domain,
+          success: false,
+          errorMessage: 'Request timed out',
+        );
+      } catch (e) {
+        return ProtocolTestResult(
+          domain: domain,
+          success: false,
+          errorMessage: e.toString(),
+        );
+      }
+    }
+
     Future<ProtocolAccessibilitySummary> runProtocolStep(
       String name,
       String description,
@@ -643,7 +666,9 @@ class InternetDiagnosticsController extends ChangeNotifier {
     ) async {
       _protocolStepName = 'Testing $name...';
       notifyListeners();
-      final futures = targets.map((domain) => tester(domain, testTimeout)).toList();
+      final futures = targets
+          .map((domain) => runProtocolDomainTest(domain, tester))
+          .toList();
       final results = await Future.wait(futures);
       return ProtocolAccessibilitySummary(
         protocolName: name,

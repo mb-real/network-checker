@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'package:http/http.dart' as http;
 import 'package:flutter_curl/flutter_curl.dart' as curl;
+import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 /// Detailed result of a single domain check within a protocol test
 class ProtocolTestResult {
@@ -66,13 +67,23 @@ class ProtocolAccessibilityService {
   // ── 1. TCP HTTP Test ───────────────────────────────────────────────────────
   static Future<ProtocolTestResult> testHttpDomain(String domain, Duration timeout) async {
     final stopwatch = Stopwatch()..start();
-    final client = http.Client();
+    final uri = Uri.parse('http://$domain');
     try {
-      final uri = Uri.parse('http://$domain');
-      // Set short connection timeout via head/get requests
-      final response = await client
-          .head(uri)
-          .timeout(timeout);
+      http.Response response;
+      try {
+        response = await _runHttpRequest(
+          uri: uri,
+          timeout: timeout,
+          method: 'HEAD',
+        );
+      } catch (_) {
+        // Fallback to GET if HEAD method is unsupported by server
+        response = await _runHttpRequest(
+          uri: uri,
+          timeout: timeout,
+          method: 'GET',
+        );
+      }
       stopwatch.stop();
 
       return ProtocolTestResult(
@@ -81,44 +92,36 @@ class ProtocolAccessibilityService {
         latencyMs: stopwatch.elapsedMilliseconds,
         details: 'HTTP Status: ${response.statusCode}\nHeaders: ${response.headers.keys.take(5).join(', ')}',
       );
-    } catch (_) {
-      try {
-        // Fallback to GET if HEAD method is unsupported by server
-        final uri = Uri.parse('http://$domain');
-        final response = await client
-            .get(uri)
-            .timeout(timeout);
-        stopwatch.stop();
-
-        return ProtocolTestResult(
-          domain: domain,
-          success: true,
-          latencyMs: stopwatch.elapsedMilliseconds,
-          details: 'HTTP Status: ${response.statusCode}',
-        );
-      } catch (e) {
-        stopwatch.stop();
-        return ProtocolTestResult(
-          domain: domain,
-          success: false,
-          latencyMs: stopwatch.elapsedMilliseconds,
-          errorMessage: _formatError(e),
-        );
-      }
-    } finally {
-      client.close();
+    } catch (e) {
+      stopwatch.stop();
+      return ProtocolTestResult(
+        domain: domain,
+        success: false,
+        latencyMs: stopwatch.elapsedMilliseconds,
+        errorMessage: _formatError(e),
+      );
     }
   }
 
   // ── 2. TCP HTTPS Test ──────────────────────────────────────────────────────
   static Future<ProtocolTestResult> testHttpsDomain(String domain, Duration timeout) async {
     final stopwatch = Stopwatch()..start();
-    final client = http.Client();
+    final uri = Uri.parse('https://$domain');
     try {
-      final uri = Uri.parse('https://$domain');
-      final response = await client
-          .head(uri)
-          .timeout(timeout);
+      http.Response response;
+      try {
+        response = await _runHttpRequest(
+          uri: uri,
+          timeout: timeout,
+          method: 'HEAD',
+        );
+      } catch (_) {
+        response = await _runHttpRequest(
+          uri: uri,
+          timeout: timeout,
+          method: 'GET',
+        );
+      }
       stopwatch.stop();
 
       return ProtocolTestResult(
@@ -127,31 +130,14 @@ class ProtocolAccessibilityService {
         latencyMs: stopwatch.elapsedMilliseconds,
         details: 'HTTPS Status: ${response.statusCode}\nHeaders: ${response.headers.keys.take(5).join(', ')}',
       );
-    } catch (_) {
-      try {
-        final uri = Uri.parse('https://$domain');
-        final response = await client
-            .get(uri)
-            .timeout(timeout);
-        stopwatch.stop();
-
-        return ProtocolTestResult(
-          domain: domain,
-          success: true,
-          latencyMs: stopwatch.elapsedMilliseconds,
-          details: 'HTTPS Status: ${response.statusCode}',
-        );
-      } catch (e) {
-        stopwatch.stop();
-        return ProtocolTestResult(
-          domain: domain,
-          success: false,
-          latencyMs: stopwatch.elapsedMilliseconds,
-          errorMessage: _formatError(e),
-        );
-      }
-    } finally {
-      client.close();
+    } catch (e) {
+      stopwatch.stop();
+      return ProtocolTestResult(
+        domain: domain,
+        success: false,
+        latencyMs: stopwatch.elapsedMilliseconds,
+        errorMessage: _formatError(e),
+      );
     }
   }
 
@@ -180,7 +166,8 @@ class ProtocolAccessibilityService {
         );
       }
       final ip = addresses.first;
-      socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0)
+          .timeout(timeout);
       final completer = Completer<bool>();
       Timer? timer = Timer(timeout, () {
         if (!completer.isCompleted) completer.complete(false);
@@ -252,7 +239,8 @@ class ProtocolAccessibilityService {
         ip = addresses.first;
       }
 
-      socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0)
+          .timeout(timeout);
       final completer = Completer<List<int>?>();
       final txId = Random().nextInt(0xffff);
       Timer? timer = Timer(timeout, () {
@@ -314,7 +302,7 @@ class ProtocolAccessibilityService {
       curl.Client? curlClient;
       try {
         curlClient = curl.Client(verifySSL: false, verbose: false);
-        await curlClient.init();
+        await curlClient.init().timeout(timeout);
 
         final request = curl.Request(
           url: 'https://$domain',
@@ -424,7 +412,6 @@ class ProtocolAccessibilityService {
   // ── 6. DNS-over-HTTPS (DoH) Test ───────────────────────────────────────────
   static Future<ProtocolTestResult> testDoHDomain(String domain, Duration timeout) async {
     final stopwatch = Stopwatch()..start();
-    final client = http.Client();
     try {
       // Perform GET query resolving google.com
       Uri uri;
@@ -436,9 +423,12 @@ class ProtocolAccessibilityService {
         headers = {'Accept': 'application/dns-json'};
       }
 
-      final response = await client
-          .get(uri, headers: headers)
-          .timeout(timeout);
+      final response = await _runHttpRequest(
+        uri: uri,
+        timeout: timeout,
+        method: 'GET',
+        headers: headers,
+      );
       stopwatch.stop();
 
       if (response.statusCode == 200) {
@@ -484,8 +474,6 @@ class ProtocolAccessibilityService {
         latencyMs: stopwatch.elapsedMilliseconds,
         errorMessage: _formatError(e),
       );
-    } finally {
-      client.close();
     }
   }
 
@@ -498,14 +486,13 @@ class ProtocolAccessibilityService {
         domain,
         853,
         timeout: timeout,
-        // Accept self-signed certificates defensively since we only test port accessibility, 
+        // Accept self-signed certificates defensively since we only test port accessibility,
         // but verify standard handshakes if possible
         onBadCertificate: (_) => true,
-      );
+      ).timeout(timeout);
       stopwatch.stop();
 
       final selectedProtocol = socket.selectedProtocol ?? 'None';
-      socket.destroy();
 
       return ProtocolTestResult(
         domain: domain,
@@ -521,6 +508,10 @@ class ProtocolAccessibilityService {
         latencyMs: stopwatch.elapsedMilliseconds,
         errorMessage: _formatError(e),
       );
+    } finally {
+      try {
+        socket?.destroy();
+      } catch (_) {}
     }
   }
 
@@ -581,6 +572,30 @@ class ProtocolAccessibilityService {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /// Runs a single HTTP request with bounded connect and idle timeouts.
+  /// Uses [HttpClient.close(force: true)] so timed-out requests cannot block cleanup.
+  static Future<http.Response> _runHttpRequest({
+    required Uri uri,
+    required Duration timeout,
+    required String method,
+    Map<String, String>? headers,
+  }) async {
+    final httpClient = HttpClient()
+      ..connectionTimeout = timeout
+      ..idleTimeout = timeout;
+
+    try {
+      final client = IOClient(httpClient);
+      final Future<http.Response> request = switch (method) {
+        'HEAD' => client.head(uri, headers: headers),
+        _ => client.get(uri, headers: headers),
+      };
+      return await request.timeout(timeout);
+    } finally {
+      httpClient.close(force: true);
+    }
+  }
 
   static List<int> _buildDnsQuery(String domain, int transactionId) {
     final bytes = <int>[

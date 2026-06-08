@@ -857,8 +857,10 @@ class InternetDiagnosticsScreen extends StatelessWidget {
   ) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    final hasIpv4 = controller.isCompleted ? controller.ipv4Success : false;
-    final hasIpv6 = controller.isCompleted ? controller.ipv6Success : false;
+    final ipv4Tested = controller.completedTestsCount > 1;
+    final ipv6Tested = controller.completedTestsCount > 2;
+    final hasIpv4 = ipv4Tested && controller.ipv4Success;
+    final hasIpv6 = ipv6Tested && controller.ipv6Success;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
