@@ -131,7 +131,7 @@ class RootDnsPingerScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: controller.isPinging ? progress : (totalCount > 0 ? 1.0 : 0),
+                value: controller.isPinging ? progress.toDouble() : (totalCount > 0 ? 1.0 : 0),
                 minHeight: 6,
                 backgroundColor: colorScheme.surfaceContainerHighest,
               ),
