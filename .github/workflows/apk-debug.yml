@@ -1,0 +1,33 @@
+name: Build Debug APK
+on: workflow_dispatch
+
+jobs:
+  build_android:
+    name: Build Android Debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.5'
+          
+      - run: flutter pub get
+
+      - name: Build Debug APK
+        run: flutter build apk --debug --split-per-abi
+
+      - name: List APK Directory (بررسی وجود فایل)
+        run: ls -alh build/app/outputs/flutter-apk/
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apks
+          path: build/app/outputs/flutter-apk/*.apk
