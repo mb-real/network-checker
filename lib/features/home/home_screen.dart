@@ -111,6 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> get _screens => [
     const InternetDiagnosticsScreen(),
     const DomainCheckerScreen(),
+    const RootDnsPingerScreen(),
     const DnsScannerScreen(),
     const DnsHunterScreen(),
     const EdgeIpCheckerScreen(),
@@ -140,6 +141,11 @@ class _HomeScreenState extends State<HomeScreen> {
       icon: Icon(Icons.dns_outlined),
       selectedIcon: Icon(Icons.dns),
       label: Text('DNS'),
+    ),
+    const NavigationRailDestination(
+      icon: Icon(Icons.dns_outlined),
+      selectedIcon: Icon(Icons.dns),
+      label: Text('ROOT-DNS'),
     ),
     const NavigationRailDestination(
       icon: Icon(Icons.radar_outlined),
@@ -261,6 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _DrawerItem(icon: Icons.network_ping, label: 'Diagnostics', index: index++),
       _DrawerItem(icon: Icons.language, label: 'Domains', index: index++),
       _DrawerItem(icon: Icons.dns, label: 'DNS', index: index++),
+      _DrawerItem(icon: Icons.dns, label: 'ROOT-DNS', index: index++),
       _DrawerItem(icon: Icons.radar, label: 'Hunter', index: index++),
       _DrawerItem(icon: Icons.router, label: 'Edge', index: index++),
       _DrawerItem(icon: Icons.cloud_sync, label: 'Akamai', index: index++),
