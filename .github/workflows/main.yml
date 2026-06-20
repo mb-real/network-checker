@@ -1,9 +1,9 @@
-name: Build Debug APK
+name: Build & Tag apk
 on: workflow_dispatch
 
 jobs:
   build_android:
-    name: Build Android Debug APK
+    name: Build & Tag apk
     runs-on: ubuntu-latest
     permissions:
       contents: write  # 👈 برای ایجاد تگ و ریلیز نیازه
