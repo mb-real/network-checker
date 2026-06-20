@@ -12,7 +12,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '22'
           
       - uses: subosito/flutter-action@v2
         with:
@@ -21,7 +21,7 @@ jobs:
       - run: flutter pub get
 
       - name: Build Debug APK
-        run: flutter build apk --debug --split-per-abi
+        run: flutter build apk --debug --split-per-abi --target-platform android-arm64
 
       - name: List APK Directory (بررسی وجود فایل)
         run: ls -alh build/app/outputs/flutter-apk/
@@ -31,3 +31,4 @@ jobs:
         with:
           name: android-debug-apks
           path: build/app/outputs/flutter-apk/*.apk
+          
