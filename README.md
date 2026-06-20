@@ -20,7 +20,7 @@ Available for Android, Windows, and Linux.
 برای اندروید، ویندوز و لینوکس در دسترس است.
 
 <p align="left">
-  <a href="https://github.com/mb-real/network-checker/actions/runs/27881373348/artifacts/7768198445">
+  <a href="https://github.com/mb-real/network-checker/actions/runs/27885181169/artifacts/7769312248">
     link
   </a>
 </p>
