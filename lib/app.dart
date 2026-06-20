@@ -17,6 +17,7 @@ import 'features/netlify_generator/netlify_generator_controller.dart';
 import 'features/akamai_scan/akamai_scan_controller.dart';
 import 'features/sni_spoof_check/sni_spoof_check_controller.dart';
 import 'features/internet_diagnostics/internet_diagnostics_controller.dart';
+import 'features/root_dns/RootDnsPingerController.dart;
 
 class RdnbenetApp extends StatelessWidget {
   const RdnbenetApp({super.key});
@@ -36,6 +37,7 @@ class RdnbenetApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AkamaiScanController()),
         ChangeNotifierProvider(create: (_) => SniSpoofCheckController()),
         ChangeNotifierProvider(create: (_) => InternetDiagnosticsController()),
+        ChangeNotifierProvider(create: (_) => RootDnsPingerController()),
       ],
       child: DynamicColorBuilder(
         builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
