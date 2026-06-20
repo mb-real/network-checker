@@ -1,0 +1,71 @@
+name: Build Debug APK
+on: workflow_dispatch
+
+jobs:
+  build_android:
+    name: Build Android Debug APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 👈 برای ایجاد تگ و ریلیز نیازه
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 👈 برای دریافت تاریخچه کامل تگ‌ها
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '22'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.5'
+
+      - run: flutter pub get
+
+      - name: Build Debug APK
+        run: flutter build apk --debug --split-per-abi --target-platform android-arm64
+
+      - name: List APK Directory
+        run: ls -alh build/app/outputs/flutter-apk/
+
+      # 🔖 مرحله 1: ایجاد تگ جدید
+      - name: Create Tag
+        id: create_tag
+        run: |
+          # دریافت آخرین تگ یا شروع از v0.0.0
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          # حذف v اول
+          VERSION=${LATEST_TAG#v}
+          # افزایش Patch (آخرین عدد)
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          # تنظیم تگ
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
+          
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      # 📦 مرحله 2: ایجاد ریلیز و آپلود فایل‌ها
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.create_tag.outputs.new_tag }}
+          name: Release ${{ steps.create_tag.outputs.new_tag }}
+          body: |
+            ## 📱 Debug APK Build
+            - تاریخ ساخت: $(date)
+            - برچسب: ${{ steps.create_tag.outputs.new_tag }}
+          files: |
+            build/app/outputs/flutter-apk/*.apk
+          draft: false
+          prerelease: true  # یا false اگر ریلیز نهایی می‌خوای
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
