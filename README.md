@@ -20,7 +20,7 @@ Available for Android, Windows, and Linux.
 برای اندروید، ویندوز و لینوکس در دسترس است.
 
 <p align="left">
-  <a href="https://github.com/mirarr-app/network-checker/releases">
+  <a href="https://github.com/mb-real/network-checker/actions/runs/27881373348/artifacts/7768198445">
     <img src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" width="180">
   </a>
 </p>
