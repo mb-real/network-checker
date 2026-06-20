@@ -19,7 +19,7 @@ import '../netlify_generator/netlify_generator_screen.dart';
 import '../akamai_scan/akamai_scan_screen.dart';
 import '../sni_spoof_check/sni_spoof_check_screen.dart';
 import '../internet_diagnostics/internet_diagnostics_screen.dart';
-import '../root_dns/root_dns_pinger_screen.dart;
+import '../root_dns/root_dns_pinger_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -111,8 +111,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> get _screens => [
     const InternetDiagnosticsScreen(),
     const DomainCheckerScreen(),
-    const RootDnsPingerScreen(),
     const DnsScannerScreen(),
+    const RootDnsPingerScreen(),
     const DnsHunterScreen(),
     const EdgeIpCheckerScreen(),
     const AkamaiScanScreen(),
