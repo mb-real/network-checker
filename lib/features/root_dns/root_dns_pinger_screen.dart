@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import 'root_dns_pinger_controller.dart';
+import '../../core/services/root_dns_pinger.dart';
 
 class RootDnsPingerScreen extends StatelessWidget {
   const RootDnsPingerScreen({super.key});
